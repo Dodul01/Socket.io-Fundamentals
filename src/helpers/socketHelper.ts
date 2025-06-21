@@ -158,92 +158,93 @@ interface SendMessagePayload {
 const initSocket = (server: Server) => {
     io = server;
 
-    io.on("connection", async (socket: Socket) => {
-        // TODO : it should not send user id when connecting because if user not login it will create error 
-        // const userId = socket.handshake.auth?.userId;
-
-        const userId = '68573d20cbe88d8acf355021'
-
-        if (!userId) {
-            socket.emit("error", "Authentication required");
-            return socket.disconnect();
-        }
-
-        const user = await User.findById(userId);
-
-        if (!user) {
-            socket.emit("error", "User not found");
-            return socket.disconnect();
-        }
-
-        const userName = user.name;
-        onlineUsers.set(userId, new Set());
-
-        console.log(`User connected: ${userName} (${userId})`);
+    io.on("connection", (socket: Socket) => {
+        console.log("Socket connected:", socket.id);
 
         // Join Room
-        socket.on("join", async ({ roomId }: JoinPayload) => {
-            // Check if user has access to room
-            const hasAccess = await RoomAccessService.verify(userId, roomId);
-            if (!hasAccess) {
-                socket.emit("error", "Access denied to room");
+        socket.on("join", async ({ roomId, userId }: JoinPayload & { userId: string }) => {
+            if (!userId || !roomId) {
+                socket.emit("error", "User ID and Room ID are required");
                 return;
             }
 
-            socket.join(roomId);
-            onlineUsers.get(userId)?.add(roomId);
+            try {
+                const user = await User.findById(userId);
+                if (!user) {
+                    socket.emit("error", "User not found");
+                    return;
+                }
 
-            io.to(roomId).emit("notification", `${userName} joined the room`);
+                const hasAccess = await RoomAccessService.verify(userId, roomId);
+                if (!hasAccess) {
+                    socket.emit("error", "Access denied to room");
+                    return;
+                }
 
-            // Send last 20 messages from DB
-            const messages = await Message.find({ roomId })
-                .sort({ createdAt: -1 })
-                .limit(20);
-            socket.emit("chatHistory", messages.reverse());
+                socket.join(roomId);
+                if (!onlineUsers.has(userId)) {
+                    onlineUsers.set(userId, new Set());
+                }
+                onlineUsers.get(userId)!.add(roomId);
 
-            io.to(roomId).emit("roomStats", {
-                onlineCount: getOnlineUserCount(roomId),
-            });
-        });
+                const userName = user.name;
+                io.to(roomId).emit("notification", `${userName} joined the room`);
 
-        // Leave Room
-        socket.on("leaveRoom", ({ roomId }: JoinPayload) => {
-            socket.leave(roomId);
-            onlineUsers.get(userId)?.delete(roomId);
+                const messages = await Message.find({ roomId }).sort({ createdAt: -1 }).limit(20);
+                socket.emit("chatHistory", messages.reverse());
 
-            io.to(roomId).emit("notification", `${userName} left the room`);
-            io.to(roomId).emit("roomStats", {
-                onlineCount: getOnlineUserCount(roomId),
-            });
+                io.to(roomId).emit("roomStats", {
+                    onlineCount: getOnlineUserCount(roomId),
+                });
+
+                // Save user info on socket for reuse
+                socket.data.userId = userId;
+                socket.data.userName = userName;
+
+            } catch (err) {
+                console.error("Join room error:", err);
+                socket.emit("error", "Failed to join room");
+            }
         });
 
         // Send Message
         socket.on("sendMessage", async ({ roomId, message }: SendMessagePayload) => {
-            if (!onlineUsers.get(userId)?.has(roomId)) {
+            const userId = socket.data.userId;
+            const userName = socket.data.userName;
+
+            if (!userId || !onlineUsers.get(userId)?.has(roomId)) {
                 socket.emit("error", "You must join the room before sending messages");
                 return;
             }
 
-            const newMessage = new Message({
-                roomId,
-                senderId: userId,
-                senderName: userName,
-                message,
-            });
-
+            const newMessage = new Message({ roomId, senderId: userId, senderName: userName, message });
             await newMessage.save();
 
-            io.to(roomId).emit("receiveMessage", {
-                senderId: userId,
-                senderName: userName,
-                message,
-            });
+            io.to(roomId).emit("receiveMessage", { senderId: userId, senderName: userName, message });
+        });
+
+        // Leave Room
+        socket.on("leaveRoom", ({ roomId }) => {
+            const userId = socket.data.userId;
+            const userName = socket.data.userName;
+
+            if (userId && onlineUsers.get(userId)) {
+                socket.leave(roomId);
+                onlineUsers.get(userId)!.delete(roomId);
+                io.to(roomId).emit("notification", `${userName} left the room`);
+                io.to(roomId).emit("roomStats", {
+                    onlineCount: getOnlineUserCount(roomId),
+                });
+            }
         });
 
         // Disconnect
         socket.on("disconnect", () => {
-            console.log(`User disconnected: ${userName} (${userId})`);
-            onlineUsers.delete(userId);
+            const userId = socket.data.userId;
+            if (userId) {
+                console.log(`User disconnected: ${userId}`);
+                onlineUsers.delete(userId);
+            }
         });
     });
 };

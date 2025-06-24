@@ -23,7 +23,8 @@ export const joinRoomHandler = (io: Server, socket: Socket) => async ({ roomId, 
 
         socket.data.userId = userId;
         socket.data.userName = user?.name;
-
+        
+        
         io.to(roomId).emit('notification', `${user?.name} joined the room.`);
 
         const messages = await Message.find({roomId}).sort({createdAt: -1}).limit(20);

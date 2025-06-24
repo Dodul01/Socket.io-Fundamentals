@@ -2,7 +2,7 @@ import { createServer, Server as HttpServer } from 'http';
 import { Server as SocketServer } from 'socket.io';
 import mongoose from "mongoose";
 import app from "./app";
-import { socketHelper } from './helpers/socketHelper';
+import socketHelper from './helpers/socketHelper';
 
 const PORT = 5000;
 

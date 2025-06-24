@@ -2,7 +2,8 @@ import { User } from "../User/user.model";
 import { TLoginUser } from "./auth.interface";
 import bcrypt from 'bcrypt';
 import { createToken } from "./auth.utils";
-import { socketHelper } from "../../helpers/socketHelper";
+import socketHelper from "../../helpers/socketHelper";
+import { IVerifyEmail } from "../User/user";
 
 const jwt_Token = '091b2c529dec033b5ff4531e622ea3f93170e045222963319662b7e4a34f0cdd';
 const jwt_access_expiry = '10d';
@@ -72,6 +73,7 @@ export const loginUser = async (payload: TLoginUser) => {
 
     return { jwtToken, user };
 }
+
 
 export const AuthServices = {
     loginUser

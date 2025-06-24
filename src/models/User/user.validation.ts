@@ -12,7 +12,8 @@ const userValidationSchema = z.object({
     password: z.string({
         required_error: "Password is required.",
         invalid_type_error: "Password must be a string",
-    }).min(6, { message: "Password must be a t last 6 characters." }).max(20, { message: "password can't be more then 20 characters." })
+    }).min(6, { message: "Password must be a t last 6 characters." }).max(20, { message: "password can't be more then 20 characters." }),
+    isVerifyed: z.boolean().optional().default(false),
 });
 
 export const userValidation = {

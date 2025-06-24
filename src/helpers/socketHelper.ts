@@ -38,8 +38,7 @@ const initSocket = (server: Server) => {
                     socket.emit("error", "User not found");
                     return;
                 }
-                console.log("User id before has access, ", user._id);
-
+              
                 // const hasAccess = await RoomAccessService.verify(user._id.toString(), roomId);
                 
                 // if (!hasAccess) {
@@ -136,3 +135,17 @@ const getIO = (): Server => {
 };
 
 export const socketHelper = { initSocket, getIO };
+
+// FIXME: reusable new code 
+// import { Server, Socket } from "socket.io";
+
+// let io : Server
+
+// export const initSocket = ( server: Server ) =>{
+//     io = server
+
+//     io.on('connection', (socket: Socket)=>{
+//         console.log("Socket connected  succesfully.", socket.id);
+        
+//     })
+// }

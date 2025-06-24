@@ -67,7 +67,10 @@ export const loginUser = async (payload: TLoginUser) => {
     // Create a JWT token using you helper function
     const jwtToken = createToken(JWTPayload, jwt_Token, jwt_access_expiry)
 
-    return { jwtToken };
+    console.log('From auth service ', user);
+    
+
+    return { jwtToken, user };
 }
 
 export const AuthServices = {

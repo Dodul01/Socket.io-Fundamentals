@@ -4,7 +4,7 @@ import { AuthServices } from "./auth.service";
 const loginUser = async (req: Request, res: Response) => {
     try {
         const result = await AuthServices.loginUser(req.body);
-        const { jwtToken } = result;
+        const { jwtToken, user } = result;
 
         res.status(200).json({
             success: true,
@@ -12,6 +12,7 @@ const loginUser = async (req: Request, res: Response) => {
             statusCode: 200,
             data: {
                 token: jwtToken,
+                user
             },
         });
     } catch (error) {

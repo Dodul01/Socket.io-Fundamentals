@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Socket.IO Chat Dashboard</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0f0f11;
+      color: #fff;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "sidebar header"
+        "sidebar main";
+      height: 100vh;
+    }
+    header {
+      grid-area: header;
+      background: #1c1c21;
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      justify-content: space-between;
+    }
+    .sidebar {
+      grid-area: sidebar;
+      background: #1c1c21;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .main {
+      grid-area: main;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .section {
+      background: #1a1a1d;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    h3 {
+      margin-top: 0;
+    }
+    input, button {
+      padding: 8px;
+      border: none;
+      border-radius: 5px;
+      margin-top: 6px;
+    }
+    button {
+      background: #6366f1;
+      color: white;
+      cursor: pointer;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    ul li {
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      border-radius: 5px;
+      background: #2a2a32;
+    }
+    .chat-input {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      background: #00ff73;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <div class="sidebar">
+      <h2>💬 Socket Chat</h2>
+      <div>
+        <label>User ID:</label>
+        <input id="userId" placeholder="123456" />
+      </div>
+      <div>
+        <label>Room ID:</label>
+        <input id="roomId" placeholder="room123" />
+      </div>
+      <button onclick="joinRoom()">Join Room</button>
+      <button onclick="leaveRoom()">Leave Room</button>
+    </div>
+
+    <header>
+      <div>Dashboard</div>
+      <div id="userStatus"></div>
+    </header>
+
+    <div class="main">
+      <div class="section">
+        <h3>Online Users</h3>
+        <ul id="onlineUsers"></ul>
+      </div>
+
+      <div class="section">
+        <h3>Notifications</h3>
+        <ul id="notifications"></ul>
+      </div>
+
+      <div class="section">
+        <h3>Chat</h3>
+        <ul id="chatMessages"></ul>
+        <div class="chat-input">
+          <input id="message" placeholder="Type a message..." style="flex: 1;" />
+          <button onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io("http://localhost:5001"); // Update to your backend
+
+    function joinRoom() {
+      const userId = document.getElementById("userId").value;
+      const roomId = document.getElementById("roomId").value;
+      if (!userId || !roomId) return alert("Fill User ID & Room ID");
+
+      socket.emit("join", { userId, roomId });
+
+      socket.on("chatHistory", (messages) => {
+        const chat = document.getElementById("chatMessages");
+        chat.innerHTML = "";
+        messages.forEach(msg => {
+          const li = document.createElement("li");
+          li.textContent = `${msg.senderName}: ${msg.message}`;
+          chat.appendChild(li);
+        });
+      });
+
+      socket.on("notification", (msg) => {
+        const note = document.getElementById("notifications");
+        const li = document.createElement("li");
+        li.textContent = msg;
+        note.appendChild(li);
+      });
+
+      socket.on("receiveMessage", ({ senderName, message }) => {
+        const chat = document.getElementById("chatMessages");
+        const li = document.createElement("li");
+        li.textContent = `${senderName}: ${message}`;
+        chat.appendChild(li);
+      });
+
+      socket.on("roomStats", (stats) => {
+        const onlineUsers = document.getElementById("onlineUsers");
+        onlineUsers.innerHTML = "";
+        if (stats?.users?.length) {
+          stats.users.forEach(name => {
+            const li = document.createElement("li");
+            li.innerHTML = `<span class="online-dot"></span>${name}`;
+            onlineUsers.appendChild(li);
+          });
+        }
+      });
+
+      socket.on("error", (err) => {
+        alert("Socket Error: " + err);
+      });
+
+      document.getElementById("userStatus").textContent = `🟢 Joined: ${roomId}`;
+    }
+
+    function leaveRoom() {
+      const roomId = document.getElementById("roomId").value;
+      socket.emit("leaveRoom", { roomId });
+      document.getElementById("userStatus").textContent = `🔴 Left Room`;
+    }
+
+    function sendMessage() {
+      const message = document.getElementById("message").value;
+      const roomId = document.getElementById("roomId").value;
+      if (!message || !roomId) return;
+      socket.emit("sendMessage", { roomId, message });
+      document.getElementById("message").value = "";
+    }
+  </script>
+</body>
+</html>

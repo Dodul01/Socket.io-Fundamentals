@@ -4,8 +4,9 @@ import { IVerifyEmail } from "./user";
 import { TUser } from "./user.interface";
 import { User } from "./user.model";
 import { StatusCodes } from 'http-status-codes';
-import { jwtHelper } from "../../helpers/jwtHelpers";
 import cryptoToken from "../../utils/cryptoTOken";
+import { jwtHelper } from "../../helpers/jwtHelper";
+
 
 const JWT_SECRET = '1f0daf15f0eb36b336e7cbc742c0165b4c30b59efb6336';
 
@@ -49,7 +50,11 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
 
     const date = new Date();
 
-    if (date > isUserExist.authentifation?.expireAt) {
+    if (!isUserExist.authentifation?.expireAt) {
+        throw new Error('OTP expiration date is missing.');
+    }
+
+    if (date > isUserExist.authentifation.expireAt) {
         throw new Error('OTP already expired, Please try again.');
     }
 

@@ -3,19 +3,28 @@ import socketHelper from "../../helpers/socketHelper";
 import { IVerifyEmail } from "./user";
 import { TUser } from "./user.interface";
 import { User } from "./user.model";
-import { StatusCodes } from 'http-status-codes';
-import cryptoToken from "../../utils/cryptoTOken";
 import { jwtHelper } from "../../helpers/jwtHelper";
+import cryptoToken from "../../utils/cryptoToken";
+import { generateOTP } from "../../utils/generateOTP";
+import { createAccount, emailTemplate } from "../../shared/emailTemplate";
+import { emailHelper } from "../../helpers/emailHelper";
 
 
 const JWT_SECRET = '1f0daf15f0eb36b336e7cbc742c0165b4c30b59efb6336';
 
 const createUserIntoDB = async (user: TUser) => {
-    /**     TODO
-     * STEP 1: Check if the user exsist if exsist throw error else let the user create account 
-     * STEP 2: send otp by email
-     */
+    const userFromDB = await User.find({ email: user.email });
+    /** TODO **/
+    // STEP 1: Check if the user exsist if exsist throw error else let the user create account 
+    
+    console.log("From user service ", userFromDB);
+    
+    if(!userFromDB){
+        throw new Error("User already already exsist.")
+    }
 
+    // STEP 2: generate otp
+    const otp = generateOTP(4);
 
     const result = await User.create(user);
 
@@ -27,6 +36,16 @@ const createUserIntoDB = async (user: TUser) => {
         name: user.name,
         email: user.email,
     })
+
+    const emailData = {
+        name: result.name,
+        otp: String(result.authentifation?.oneTimePassword),
+        email: result.email
+    }
+
+    //STEP 3: send the otp
+    const createAccountTemplate = createAccount(emailData)
+    emailHelper.sendEmail(createAccountTemplate);
 
     return result;
 }
@@ -81,10 +100,10 @@ const verifyEmailToDB = async (payload: IVerifyEmail) => {
         // await ResetToken.create({ user: isExistUser._id, token: createToken, expireAt: new Date(Date.now() + 5 * 60000) });
 
         message = 'Verification Successful: Please securely store and utilize this code for reset password';
-          verifyToken = createToken;
+        verifyToken = createToken;
     }
 
-    return {verifyToken, message, accessToken, user};
+    return { verifyToken, message, accessToken, user };
 }
 
 export const UserService = {

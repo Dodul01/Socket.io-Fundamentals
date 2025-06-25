@@ -1,7 +1,11 @@
 export interface IMessage {
-  roomId: string;
   senderId: string;
-  senderName: string;
-  message: string;
-  createdAt?: Date;
+  receiverId: string;
+  text: string;
+  timestamp?: Date;
+}
+
+export interface IMessageDocument {
+  roomId: string;
+  messages: IMessage[];
 }

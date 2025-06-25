@@ -1,17 +1,41 @@
-import { IMessageDocument, Message } from "./message.model";
+import { Message } from "./message.model";
 
-export class MessageService {
-  static async saveMessage(data: {
-    roomId: string;
-    senderId: string;
-    senderName: string;
-    message: string;
-  }): Promise<IMessageDocument> {
-    const msg = new Message(data);
-    return await msg.save();
-  }
+export async function saveMessage(data: {
+  roomId: string;
+  senderId: string;
+  receiverId: string;
+  text: string;
+}){
+  const existingRoom = await Message.findOne({ roomId: data.roomId });
+  console.log("from the saveMessage function:", data);
 
-  static async getMessages(roomId: string, limit = 20): Promise<IMessageDocument[]> {
-    return await Message.find({ roomId }).sort({ createdAt: -1 }).limit(limit);
+  const message = {
+    senderId: data.senderId,
+    receiverId: data.receiverId,
+    text: data.text,
+    timestamp: new Date(),
+  };
+
+  if (existingRoom) {
+    await Message.updateOne(
+      { roomId: data.roomId },
+      { $push: { messages: message } }
+    );
+  } else {
+    await Message.create({
+      roomId: data.roomId,
+      messages: [message],
+    });
   }
+}
+
+export async function getMessages(roomId: string, limit = 20) {
+  const room = await Message.findOne({ roomId });
+  return room?.messages.slice(-limit) || [];
+}
+
+
+export const MessageService = {
+  saveMessage,
+  getMessages,
 }

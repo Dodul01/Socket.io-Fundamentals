@@ -1,30 +1,38 @@
 import { Server, Socket } from "socket.io";
 import { Message } from "../../models/Message/message.model";
 
-export const sendMessageHandler = (io: Server, socket: Socket) => async ({ roomId, message }: { roomId: string, message: string }) => {
-  if (!roomId || !message) {
-    socket.emit("error", "Room ID and message required.");
+export const sendMessageHandler = (io: Server, socket: Socket) => async ({ roomId, message, receiverId }: { roomId: string, message: string, receiverId: string }) => {
+  if (!roomId || !message || !receiverId) {
+    socket.emit("error", "Room ID, message and receiverId required.");
     return;
   }
 
-  const userId = socket.data.userId;
-  const userName = socket.data.userName;
+  const senderId = socket.data.userId;
+  const senderName = socket.data.userName;
 
-  if (!userId || !userName || !socket.rooms.has(roomId)) {
+  if (!senderId || !senderName || !socket.rooms.has(roomId)) {
     socket.emit("error", "You must join the room before sending message.");
     return;
   }
 
-  try {
-    // Save to DB
-    const msg = await Message.create({
-      roomId,
-      senderId: userId,
-      senderName: userName,
-      message,
-    });
+  const newMsg = {
+    senderId,
+    receiverId,
+    text: message,
+    timestamp: new Date(),
+  };
 
-    io.to(roomId).emit("receiveMessage", msg);
+  try {
+    // TODO: if the document exsist then update it if not then create a document
+
+    // Update existing room document by pushing the new message
+    const updatedRoom = await Message.findOneAndUpdate(
+      { roomId },
+      { $push: { messages: newMsg } },
+      { new: true, upsert: true }
+    );
+
+    io.to(roomId).emit("receiveMessage", newMsg);
   } catch (err) {
     socket.emit("error", "Failed to send message.");
   }
